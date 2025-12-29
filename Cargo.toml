@@ -47,6 +47,18 @@ module_name_repetitions = "allow"
 too_many_lines = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+doc_markdown = "allow"
+derive_partial_eq_without_eq = "allow"
+redundant_closure_for_method_calls = "allow"
+missing_const_for_fn = "allow"
+redundant_clone = "allow"
+ignored_unit_patterns = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+struct_field_names = "allow"
+needless_pass_by_value = "allow"
+unnecessary_lazy_evaluations = "allow"
+significant_drop_tightening = "allow"
 
 [profile.release]
 lto = true

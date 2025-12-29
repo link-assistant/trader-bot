@@ -79,7 +79,7 @@ async fn main() {
             }
         }
         Err(e) => {
-            println!("Rebalance failed: {}", e);
+            println!("Rebalance failed: {e}");
         }
     }
 
@@ -104,12 +104,12 @@ async fn main() {
             println!("\nActual Allocation:");
             let alloc = wallet.current_allocation();
             for (symbol, pct) in alloc.iter() {
-                println!("  {}: {:.2}%", symbol, pct);
+                println!("  {symbol}: {pct:.2}%");
             }
             println!("  Cash: {:.2}%", wallet.cash_percentage());
         }
         Err(e) => {
-            println!("Failed to get wallet: {}", e);
+            println!("Failed to get wallet: {e}");
         }
     }
 
