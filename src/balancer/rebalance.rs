@@ -159,12 +159,16 @@ impl RebalancePlan {
 }
 
 /// Builder for creating rebalance plans.
+///
+/// This struct is prepared for future use as an alternative API for creating plans.
+#[allow(dead_code)]
 pub struct RebalancePlanBuilder {
     currency: String,
     actions: Vec<RebalanceAction>,
     dry_run: bool,
 }
 
+#[allow(dead_code)]
 impl RebalancePlanBuilder {
     /// Creates a new builder.
     #[must_use]

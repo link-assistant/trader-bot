@@ -223,7 +223,10 @@ impl RebalanceCalculator {
 }
 
 /// Builds desired allocation based on different modes.
+///
+/// This enum is prepared for future use to support multiple allocation strategies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum AllocationMode {
     /// Manual allocation with fixed percentages.
     Manual,
@@ -236,14 +239,20 @@ pub enum AllocationMode {
 }
 
 /// Metric data for automatic allocation calculation.
+///
+/// This struct is prepared for future use to support automatic allocation strategies.
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
 pub struct AssetMetrics {
     /// Market data by symbol.
     pub data: HashMap<String, MetricValue>,
 }
 
 /// Metrics for a single asset.
+///
+/// This struct is prepared for future use with automatic allocation strategies.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MetricValue {
     /// Market capitalization.
     pub market_cap: Option<Decimal>,
@@ -251,6 +260,7 @@ pub struct MetricValue {
     pub aum: Option<Decimal>,
 }
 
+#[allow(dead_code)]
 impl AssetMetrics {
     /// Creates a new empty metrics collection.
     #[must_use]
