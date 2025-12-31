@@ -1,24 +1,30 @@
-# Balancer Trader Bot
+# Trader Bot
 
-A portfolio balancer and trading bot written in Rust with multi-exchange support.
+A unified trading bot framework written in Rust with multi-exchange support, multiple trading strategies, and comprehensive testing.
 
-[![CI/CD Pipeline](https://github.com/link-assistant/balancer-trader-bot/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/link-assistant/balancer-trader-bot/actions)
+[![CI/CD Pipeline](https://github.com/link-assistant/trader-bot/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/link-assistant/trader-bot/actions)
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org/)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
 ## Features
 
-- **Portfolio Rebalancing**: Automatically rebalance your portfolio to maintain target allocations
-- **Multiple Allocation Strategies**:
+- **Multiple Trading Strategies**:
+  - **Balancer Strategy**: Automatically rebalance portfolios to target allocations
+  - **Scalping Strategy**: Buy-low/sell-high with FIFO lot tracking
+  - **Holding Strategy**: Maintain target allocations per asset
+  - Extensible strategy trait for custom implementations
+- **Portfolio Allocation Modes**:
   - Manual (fixed percentages)
   - Market Cap weighted
   - AUM (Assets Under Management) weighted
   - Decorrelation strategy
-- **Multi-Exchange Support**: Abstracted exchange layer supporting multiple brokers
-  - T-Bank (formerly Tinkoff)
-  - Crypto exchanges (e.g., Binance)
+- **Multi-Exchange Support**: Abstracted exchange layer with adapters for:
+  - T-Bank (formerly Tinkoff Investments)
+  - Binance (spot trading)
+  - Interactive Brokers (TWS/IB Gateway)
   - Extensible for other brokers
-- **Market Simulator**: Built-in simulator for backtesting and testing
+- **Multi-User/Multi-Account**: Manage multiple users and accounts from a single configuration
+- **Market Simulator**: Built-in simulator for backtesting and testing strategies
 - **Comprehensive Testing**: Unit tests, integration tests, and scenario-based tests
 - **Clean Architecture**: Follows [code architecture principles](https://github.com/link-foundation/code-architecture-principles)
 
@@ -28,11 +34,19 @@ The crate follows Clean Architecture principles with clear separation of concern
 
 ```
 src/
-├── domain/          # Core business types (Position, Wallet, Order, Money)
+├── adapters/        # Exchange-specific implementations
+│   ├── binance.rs   # Binance adapter
+│   ├── interactive_brokers.rs  # IB adapter
+│   └── tbank.rs     # T-Bank adapter
+├── config/          # Configuration management
+├── domain/          # Core business types (Position, Wallet, Order, Money, Trade)
 ├── exchange/        # Exchange API abstraction layer (ExchangeProvider trait)
-├── balancer/        # Portfolio rebalancing logic and calculations
 ├── simulator/       # Market simulation for testing
-└── config/          # Configuration management
+└── strategy/        # Trading strategies
+    ├── balancer/    # Portfolio rebalancing (engine, calculator, actions)
+    ├── scalper.rs   # Scalping strategy with FIFO tracking
+    ├── holding.rs   # Position holding strategy
+    └── traits.rs    # Strategy trait definition
 ```
 
 ### Key Design Principles
@@ -40,6 +54,7 @@ src/
 - **Modularity**: Split into independently understandable modules
 - **Separation of Concerns**: Domain logic separate from exchange APIs
 - **Abstraction**: Exchange-agnostic design via `ExchangeProvider` trait
+- **Strategy Pattern**: Composable strategies via the `Strategy` trait
 - **Testability**: Pure calculation logic with comprehensive tests
 - **Immutability**: Value types for domain concepts (Money, Position)
 
@@ -49,8 +64,8 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/link-assistant/balancer-trader-bot.git
-cd balancer-trader-bot
+git clone https://github.com/link-assistant/trader-bot.git
+cd trader-bot
 
 # Build the project
 cargo build
@@ -65,11 +80,11 @@ cargo run
 cargo run --example basic_usage
 ```
 
-### Basic Usage
+### Basic Usage - Portfolio Balancing
 
 ```rust
-use balancer_trader_bot::{
-    balancer::{BalancerConfig, BalancerEngine},
+use trader_bot::{
+    strategy::balancer::{BalancerConfig, BalancerEngine},
     domain::DesiredAllocation,
     simulator::SimulatedExchange,
 };
@@ -99,6 +114,35 @@ async fn main() {
 }
 ```
 
+### Using Trading Strategies
+
+```rust
+use trader_bot::strategy::{
+    Strategy, StrategyDecision, MarketState,
+    ScalpingStrategy, TradingSettings,
+    HoldingStrategy, HoldingConfig,
+};
+use rust_decimal_macros::dec;
+
+// Create a scalping strategy
+let settings = TradingSettings::new("AAPL")
+    .with_minimum_profit_steps(2)
+    .with_max_position(100);
+let scalper = ScalpingStrategy::new(settings);
+
+// Create a holding strategy
+let config = HoldingConfig::new("GOOGL")
+    .with_percent(dec!(25));  // Target 25% allocation
+let holder = HoldingStrategy::new(config);
+
+// Get strategy decisions
+let state = MarketState::new("AAPL", "USD")
+    .with_cash(dec!(10000))
+    .with_last_price(dec!(150));
+
+let decision = scalper.decide(&state).await;
+```
+
 ## Configuration
 
 Create a `config.json` file:
@@ -110,20 +154,42 @@ Create a `config.json` file:
     "log_level": "info",
     "verbose": false
   },
+  "users": [
+    {
+      "id": "user1",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "accounts": [
+        {
+          "id": "account1",
+          "name": "Main Trading Account",
+          "exchange": "tbank",
+          "exchange_account_id": "12345",
+          "token_env_var": "TBANK_API_TOKEN",
+          "desired_allocation": {
+            "SBER": 30,
+            "LKOH": 30,
+            "GAZP": 40
+          },
+          "allocation_mode": "manual",
+          "balance_interval_secs": 3600
+        }
+      ],
+      "active": true
+    }
+  ],
   "accounts": [
     {
-      "id": "main",
-      "name": "Main Account",
-      "exchange": "tbank",
-      "exchange_account_id": "12345",
-      "token_env_var": "TBANK_API_TOKEN",
+      "id": "shared",
+      "name": "Shared Account",
+      "exchange": "binance",
+      "exchange_account_id": "67890",
+      "token_env_var": "BINANCE_API_KEY",
       "desired_allocation": {
-        "SBER": 30,
-        "LKOH": 30,
-        "GAZP": 40
+        "BTC": 50,
+        "ETH": 50
       },
-      "allocation_mode": "manual",
-      "balance_interval_secs": 3600
+      "allocation_mode": "market_cap"
     }
   ]
 }
@@ -152,7 +218,7 @@ cargo test --test integration_test
 The simulator supports scenario-based testing:
 
 ```rust
-use balancer_trader_bot::simulator::{ScenarioBuilder, PriceModel};
+use trader_bot::simulator::{ScenarioBuilder, PriceModel};
 use rust_decimal_macros::dec;
 
 #[tokio::test]
@@ -174,13 +240,22 @@ async fn test_volatile_market() {
 
 ## Exchange Support
 
+### Available Adapters
+
+| Exchange | Adapter | Status |
+|----------|---------|--------|
+| T-Bank | `TBankAdapter` | Placeholder |
+| Binance | `BinanceAdapter` | Placeholder |
+| Interactive Brokers | `InteractiveBrokersAdapter` | Placeholder |
+| Simulator | `SimulatedExchange` | Full implementation |
+
 ### Implementing a New Exchange
 
 To add support for a new exchange, implement the `ExchangeProvider` trait:
 
 ```rust
 use async_trait::async_trait;
-use balancer_trader_bot::exchange::{ExchangeProvider, ExchangeResult, /* ... */};
+use trader_bot::exchange::{ExchangeProvider, ExchangeResult, /* ... */};
 
 struct MyExchange {
     // Exchange-specific fields
@@ -192,6 +267,48 @@ impl ExchangeProvider for MyExchange {
     async fn ping(&self) -> ExchangeResult<()> { /* ... */ }
     async fn get_wallet(&self, account_id: &str) -> ExchangeResult<Wallet> { /* ... */ }
     // ... implement other methods
+}
+```
+
+## Strategies
+
+### Implementing Custom Strategies
+
+To create a custom trading strategy, implement the `Strategy` trait:
+
+```rust
+use async_trait::async_trait;
+use trader_bot::strategy::{Strategy, StrategyDecision, MarketState};
+use trader_bot::domain::Order;
+
+struct MyStrategy {
+    symbol: String,
+}
+
+#[async_trait]
+impl Strategy for MyStrategy {
+    fn name(&self) -> &str { "my_strategy" }
+
+    async fn decide(&self, state: &MarketState) -> StrategyDecision {
+        // Your trading logic here
+        StrategyDecision::hold()
+    }
+
+    async fn on_order_filled(&mut self, order: &Order) {
+        // Handle order fills
+    }
+
+    async fn on_order_cancelled(&mut self, order: &Order) {
+        // Handle cancellations
+    }
+
+    async fn reset(&mut self) {
+        // Reset strategy state
+    }
+
+    fn symbols(&self) -> Vec<String> {
+        vec![self.symbol.clone()]
+    }
 }
 ```
 
@@ -207,10 +324,10 @@ cargo fmt
 cargo fmt --check
 
 # Run Clippy lints
-cargo clippy --all-targets --all-features
+cargo clippy --all-targets --all-features -- -D warnings
 
 # Run all checks
-cargo fmt --check && cargo clippy --all-targets --all-features && cargo test
+cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test
 ```
 
 ### Pre-commit Hooks
@@ -231,11 +348,12 @@ pre-commit install
 ├── examples/
 │   └── basic_usage.rs     # Usage examples
 ├── src/
-│   ├── balancer/          # Rebalancing logic
+│   ├── adapters/          # Exchange adapters
 │   ├── config/            # Configuration
 │   ├── domain/            # Core domain types
 │   ├── exchange/          # Exchange abstraction
 │   ├── simulator/         # Market simulator
+│   ├── strategy/          # Trading strategies
 │   ├── lib.rs             # Library entry
 │   └── main.rs            # CLI entry
 ├── tests/
@@ -263,5 +381,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## References
 
-- Reimplementation of [tinkoff-invest-etf-balancer-bot](https://github.com/suenot/tinkoff-invest-etf-balancer-bot)
+- Originally based on [balancer-trader-bot](https://github.com/link-assistant/trader-bot)
+- Incorporates ideas from [scalper-trader-bot](https://github.com/link-assistant/scalper-trader-bot)
 - Follows [code-architecture-principles](https://github.com/link-foundation/code-architecture-principles)

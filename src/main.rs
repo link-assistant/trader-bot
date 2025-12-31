@@ -1,13 +1,14 @@
-//! Balancer Trader Bot - CLI application.
+//! Trader Bot - CLI application.
 //!
-//! This is the command-line interface for the portfolio balancer.
+//! This is the command-line interface for the configurable trading bot.
 
-use balancer_trader_bot::prelude::*;
-use balancer_trader_bot::simulator::SimulatedExchange;
 use rust_decimal_macros::dec;
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
+use trader_bot::domain::DesiredAllocation;
+use trader_bot::prelude::*;
+use trader_bot::simulator::SimulatedExchange;
 
 #[tokio::main]
 async fn main() {
@@ -17,8 +18,8 @@ async fn main() {
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
 
-    info!("Balancer Trader Bot v{}", balancer_trader_bot::VERSION);
-    info!("Starting portfolio balancer...");
+    info!("Trader Bot v{}", trader_bot::VERSION);
+    info!("Starting portfolio balancer demo...");
 
     // Demo with simulated exchange
     demo_simulation().await;

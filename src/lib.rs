@@ -1,30 +1,39 @@
-//! Balancer Trader Bot - A portfolio balancer and trading bot.
+//! Trader Bot - A configurable trading bot with multi-strategy support.
 //!
-//! This crate provides tools for automated portfolio rebalancing across
-//! multiple exchanges and brokers.
+//! This crate provides a comprehensive trading bot framework with:
+//! - Multi-exchange support through a unified abstraction layer
+//! - Multiple trading strategies (balancing, scalping, holding)
+//! - Recursive strategy composition (balancer can balance between sub-strategies)
+//! - Multi-user, multi-account support
+//! - Market simulator for backtesting and testing
 //!
 //! # Architecture
 //!
 //! The crate follows Clean Architecture principles with clear separation:
 //!
-//! - **domain**: Core business types (Position, Wallet, Order, Money)
+//! - **domain**: Core business types (Position, Wallet, Order, Money, Trade)
 //! - **exchange**: Exchange API abstraction layer (ExchangeProvider trait)
-//! - **balancer**: Portfolio rebalancing logic and calculations
+//! - **strategy**: Trading strategies (balancing, scalping, holding)
+//! - **adapters**: Exchange-specific implementations (T-Bank, Binance, etc.)
 //! - **simulator**: Market simulation for testing
-//! - **config**: Configuration management
+//! - **config**: Configuration management for multi-user/multi-account setups
 //!
 //! # Features
 //!
-//! - Multiple rebalancing strategies (manual, market cap, AUM, decorrelation)
-//! - Exchange-agnostic design supporting multiple brokers
-//! - Built-in market simulator for testing and backtesting
-//! - Comprehensive test coverage with unit, integration, and e2e tests
+//! - **Portfolio Balancing**: Rebalance portfolio to target allocations
+//! - **Scalping Strategy**: High-frequency buy-low sell-high trading
+//! - **Holding Strategy**: Configurable asset holding with position limits
+//! - **Strategy Composition**: Balance between multiple sub-strategies
+//! - **Multi-Exchange**: T-Bank, Binance, Interactive Brokers support
+//! - **Multi-Account**: Manage multiple accounts per user
+//! - **Multi-User**: Support multiple users with isolated configurations
+//! - **Market Simulator**: Full-featured simulator for backtesting
 //!
 //! # Example
 //!
 //! ```rust,no_run
-//! use balancer_trader_bot::{
-//!     balancer::{BalancerConfig, BalancerEngine},
+//! use trader_bot::{
+//!     strategy::{BalancerEngine, BalancerConfig},
 //!     domain::DesiredAllocation,
 //!     simulator::SimulatedExchange,
 //! };
@@ -57,22 +66,30 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
-pub mod balancer;
+pub mod adapters;
 pub mod config;
 pub mod domain;
 pub mod exchange;
 pub mod simulator;
+pub mod strategy;
+
+// Re-export balancer module at the old path for backwards compatibility
+#[doc(hidden)]
+pub use strategy::balancer;
 
 /// Package version (matches Cargo.toml version).
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Re-export commonly used types at the crate root.
 pub mod prelude {
-    pub use crate::balancer::{BalancerConfig, BalancerEngine, RebalanceCalculator, RebalancePlan};
-    pub use crate::config::{AccountConfig, AppConfig};
+    pub use crate::config::{AccountConfig, AppConfig, UserConfig};
     pub use crate::domain::{
-        DesiredAllocation, Money, Order, OrderDirection, OrderStatus, Position, Wallet,
+        DesiredAllocation, Money, Order, OrderDirection, OrderStatus, Position, Trade, Wallet,
     };
     pub use crate::exchange::{ExchangeError, ExchangeProvider, ExchangeResult};
     pub use crate::simulator::SimulatedExchange;
+    pub use crate::strategy::{
+        BalancerConfig, BalancerEngine, HoldingStrategy, RebalanceCalculator, RebalancePlan,
+        ScalpingStrategy, Strategy, StrategyAction, StrategyDecision, TradingSettings,
+    };
 }

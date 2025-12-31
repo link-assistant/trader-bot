@@ -1,12 +1,15 @@
 //! Configuration management for the trading bot.
+//!
+//! This module provides configuration types for multi-user, multi-account,
+//! and multi-strategy setups.
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::balancer::BalancerConfig;
 use crate::domain::DesiredAllocation;
+use crate::strategy::BalancerConfig;
 
 /// Mode for determining desired allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -149,6 +152,58 @@ impl AccountConfig {
     }
 }
 
+/// Configuration for a single user.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserConfig {
+    /// Unique user identifier.
+    pub id: String,
+    /// Human-readable user name.
+    pub name: String,
+    /// Email address (optional).
+    #[serde(default)]
+    pub email: Option<String>,
+    /// User's accounts.
+    #[serde(default)]
+    pub accounts: Vec<AccountConfig>,
+    /// Whether the user is active.
+    #[serde(default = "default_true")]
+    pub active: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl UserConfig {
+    /// Creates a new user configuration.
+    #[must_use]
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            email: None,
+            accounts: Vec::new(),
+            active: true,
+        }
+    }
+
+    /// Adds an account to the user.
+    pub fn add_account(&mut self, account: AccountConfig) {
+        self.accounts.push(account);
+    }
+
+    /// Gets an account by ID.
+    #[must_use]
+    pub fn get_account(&self, id: &str) -> Option<&AccountConfig> {
+        self.accounts.iter().find(|a| a.id == id)
+    }
+
+    /// Returns all active accounts.
+    pub fn active_accounts(&self) -> impl Iterator<Item = &AccountConfig> {
+        self.accounts.iter()
+    }
+}
+
 /// Top-level application configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -158,7 +213,10 @@ pub struct AppConfig {
     /// Global settings.
     #[serde(default)]
     pub settings: GlobalSettings,
-    /// Account configurations.
+    /// User configurations (for multi-user support).
+    #[serde(default)]
+    pub users: Vec<UserConfig>,
+    /// Account configurations (for single-user mode, backwards compatible).
     #[serde(default)]
     pub accounts: Vec<AccountConfig>,
 }
@@ -203,45 +261,98 @@ impl AppConfig {
         serde_json::to_string_pretty(self).map_err(|e| ConfigError::SerializeError(e.to_string()))
     }
 
-    /// Gets an account by ID.
+    /// Gets an account by ID (searches both direct accounts and user accounts).
     #[must_use]
     pub fn get_account(&self, id: &str) -> Option<&AccountConfig> {
-        self.accounts.iter().find(|a| a.id == id)
+        // First check direct accounts
+        if let Some(account) = self.accounts.iter().find(|a| a.id == id) {
+            return Some(account);
+        }
+
+        // Then check user accounts
+        for user in &self.users {
+            if let Some(account) = user.get_account(id) {
+                return Some(account);
+            }
+        }
+
+        None
+    }
+
+    /// Gets a user by ID.
+    #[must_use]
+    pub fn get_user(&self, id: &str) -> Option<&UserConfig> {
+        self.users.iter().find(|u| u.id == id)
+    }
+
+    /// Returns all accounts from all users plus direct accounts.
+    pub fn all_accounts(&self) -> impl Iterator<Item = &AccountConfig> {
+        self.accounts
+            .iter()
+            .chain(self.users.iter().flat_map(|u| u.accounts.iter()))
+    }
+
+    /// Returns all active users.
+    pub fn active_users(&self) -> impl Iterator<Item = &UserConfig> {
+        self.users.iter().filter(|u| u.active)
     }
 
     /// Validates the configuration.
     pub fn validate(&self) -> Result<(), ConfigError> {
-        if self.accounts.is_empty() {
+        // Check we have at least some accounts (either direct or via users)
+        let has_accounts =
+            !self.accounts.is_empty() || self.users.iter().any(|u| !u.accounts.is_empty());
+
+        if !has_accounts {
             return Err(ConfigError::ValidationError(
                 "No accounts configured".to_string(),
             ));
         }
 
+        // Validate direct accounts
         for account in &self.accounts {
-            if account.id.is_empty() {
+            Self::validate_account(account)?;
+        }
+
+        // Validate user accounts
+        for user in &self.users {
+            if user.id.is_empty() {
                 return Err(ConfigError::ValidationError(
-                    "Account ID cannot be empty".to_string(),
+                    "User ID cannot be empty".to_string(),
                 ));
             }
-            if account.exchange.is_empty() {
+            for account in &user.accounts {
+                Self::validate_account(account)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_account(account: &AccountConfig) -> Result<(), ConfigError> {
+        if account.id.is_empty() {
+            return Err(ConfigError::ValidationError(
+                "Account ID cannot be empty".to_string(),
+            ));
+        }
+        if account.exchange.is_empty() {
+            return Err(ConfigError::ValidationError(format!(
+                "Account {} has no exchange specified",
+                account.id
+            )));
+        }
+
+        // Validate allocation sums to ~100% for manual mode
+        if account.allocation_mode == AllocationMode::Manual
+            && !account.desired_allocation.is_empty()
+        {
+            let total: Decimal = account.desired_allocation.values().copied().sum();
+            let diff = (total - Decimal::from(100)).abs();
+            if diff > Decimal::from(1) {
                 return Err(ConfigError::ValidationError(format!(
-                    "Account {} has no exchange specified",
+                    "Account {} allocation sums to {total}%, expected ~100%",
                     account.id
                 )));
-            }
-
-            // Validate allocation sums to ~100% for manual mode
-            if account.allocation_mode == AllocationMode::Manual
-                && !account.desired_allocation.is_empty()
-            {
-                let total: Decimal = account.desired_allocation.values().copied().sum();
-                let diff = (total - Decimal::from(100)).abs();
-                if diff > Decimal::from(1) {
-                    return Err(ConfigError::ValidationError(format!(
-                        "Account {} allocation sums to {total}%, expected ~100%",
-                        account.id
-                    )));
-                }
             }
         }
 
@@ -319,6 +430,7 @@ mod tests {
         let config = AppConfig {
             version: "1.0.0".into(),
             settings: GlobalSettings::default(),
+            users: vec![],
             accounts: vec![],
         };
 
@@ -336,6 +448,7 @@ mod tests {
         let config = AppConfig {
             version: "1.0.0".into(),
             settings: GlobalSettings::default(),
+            users: vec![],
             accounts: vec![AccountConfig {
                 id: "test".into(),
                 name: "Test".into(),

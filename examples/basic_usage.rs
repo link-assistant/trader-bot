@@ -1,20 +1,20 @@
-//! Basic usage example for balancer-trader-bot.
+//! Basic usage example for trader-bot.
 //!
 //! This example demonstrates portfolio rebalancing with a simulated exchange.
 //!
 //! Run with: `cargo run --example basic_usage`
 
-use balancer_trader_bot::balancer::{BalancerConfig, BalancerEngine};
-use balancer_trader_bot::domain::DesiredAllocation;
-use balancer_trader_bot::exchange::ExchangeProvider;
-use balancer_trader_bot::simulator::SimulatedExchange;
 use rust_decimal_macros::dec;
 use std::sync::Arc;
+use trader_bot::domain::DesiredAllocation;
+use trader_bot::exchange::ExchangeProvider;
+use trader_bot::simulator::SimulatedExchange;
+use trader_bot::strategy::balancer::{BalancerConfig, BalancerEngine};
 
 #[tokio::main]
 async fn main() {
-    println!("Balancer Trader Bot - Basic Usage Example");
-    println!("==========================================\n");
+    println!("Trader Bot - Basic Usage Example");
+    println!("=================================\n");
 
     // Create a simulated exchange
     let exchange = SimulatedExchange::new("USD");

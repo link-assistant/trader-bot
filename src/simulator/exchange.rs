@@ -61,8 +61,7 @@ impl SimulatedExchange {
             info: ExchangeInfo {
                 id: "SIMULATOR".to_string(),
                 name: "Simulated Exchange".to_string(),
-                url: None,
-                available: true,
+                url: "https://localhost/".to_string(),
                 supported_types: vec![
                     InstrumentType::Stock,
                     InstrumentType::Etf,
