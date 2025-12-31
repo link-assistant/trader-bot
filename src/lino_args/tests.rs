@@ -83,21 +83,41 @@ mod getenv_tests {
 
     #[test]
     fn test_getenv_bool_true_values() {
-        for value in &["true", "1", "yes", "on", "TRUE", "YES", "ON"] {
-            env::set_var("TEST_LINO_DEBUG", value);
-            let result = getenv_bool("TEST_LINO_DEBUG", false);
+        // Use unique var names for each value to avoid race conditions in parallel tests
+        let test_values = [
+            ("TEST_LINO_BOOL_TRUE_1", "true"),
+            ("TEST_LINO_BOOL_TRUE_2", "1"),
+            ("TEST_LINO_BOOL_TRUE_3", "yes"),
+            ("TEST_LINO_BOOL_TRUE_4", "on"),
+            ("TEST_LINO_BOOL_TRUE_5", "TRUE"),
+            ("TEST_LINO_BOOL_TRUE_6", "YES"),
+            ("TEST_LINO_BOOL_TRUE_7", "ON"),
+        ];
+        for (var_name, value) in &test_values {
+            env::set_var(var_name, value);
+            let result = getenv_bool(var_name, false);
             assert!(result, "Expected true for value: {}", value);
-            env::remove_var("TEST_LINO_DEBUG");
+            env::remove_var(var_name);
         }
     }
 
     #[test]
     fn test_getenv_bool_false_values() {
-        for value in &["false", "0", "no", "off", "FALSE", "NO", "OFF"] {
-            env::set_var("TEST_LINO_DEBUG", value);
-            let result = getenv_bool("TEST_LINO_DEBUG", true);
+        // Use unique var names for each value to avoid race conditions in parallel tests
+        let test_values = [
+            ("TEST_LINO_BOOL_FALSE_1", "false"),
+            ("TEST_LINO_BOOL_FALSE_2", "0"),
+            ("TEST_LINO_BOOL_FALSE_3", "no"),
+            ("TEST_LINO_BOOL_FALSE_4", "off"),
+            ("TEST_LINO_BOOL_FALSE_5", "FALSE"),
+            ("TEST_LINO_BOOL_FALSE_6", "NO"),
+            ("TEST_LINO_BOOL_FALSE_7", "OFF"),
+        ];
+        for (var_name, value) in &test_values {
+            env::set_var(var_name, value);
+            let result = getenv_bool(var_name, true);
             assert!(!result, "Expected false for value: {}", value);
-            env::remove_var("TEST_LINO_DEBUG");
+            env::remove_var(var_name);
         }
     }
 
