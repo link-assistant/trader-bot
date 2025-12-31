@@ -1,13 +1,13 @@
-//! Integration tests for balancer-trader-bot.
+//! Integration tests for trader-bot.
 //!
 //! These tests verify the complete workflow of the balancer.
 
-use balancer_trader_bot::balancer::{BalancerConfig, BalancerEngine, RebalanceCalculator};
-use balancer_trader_bot::domain::{DesiredAllocation, Money, Position, Wallet};
-use balancer_trader_bot::exchange::ExchangeProvider;
-use balancer_trader_bot::simulator::{PriceModel, ScenarioBuilder, SimulatedExchange};
 use rust_decimal_macros::dec;
 use std::sync::Arc;
+use trader_bot::domain::{DesiredAllocation, Money, Position, Wallet};
+use trader_bot::exchange::ExchangeProvider;
+use trader_bot::simulator::{PriceModel, ScenarioBuilder, SimulatedExchange};
+use trader_bot::strategy::balancer::{BalancerConfig, BalancerEngine, RebalanceCalculator};
 
 mod balancer_integration_tests {
     use super::*;
@@ -273,7 +273,7 @@ mod scenario_integration_tests {
 }
 
 mod version_tests {
-    use balancer_trader_bot::VERSION;
+    use trader_bot::VERSION;
 
     #[test]
     fn test_version_is_not_empty() {

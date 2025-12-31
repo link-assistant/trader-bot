@@ -202,6 +202,32 @@ pub struct OrderBook {
 }
 
 impl OrderBook {
+    /// Creates an empty order book.
+    #[must_use]
+    pub fn empty(symbol: impl Into<String>) -> Self {
+        Self {
+            symbol: symbol.into(),
+            bids: Vec::new(),
+            asks: Vec::new(),
+            timestamp: chrono::Utc::now(),
+        }
+    }
+
+    /// Creates an order book with the given levels.
+    #[must_use]
+    pub fn with_levels(
+        symbol: impl Into<String>,
+        bids: Vec<OrderBookEntry>,
+        asks: Vec<OrderBookEntry>,
+    ) -> Self {
+        Self {
+            symbol: symbol.into(),
+            bids,
+            asks,
+            timestamp: chrono::Utc::now(),
+        }
+    }
+
     /// Returns the best bid (highest buy price).
     #[must_use]
     pub fn best_bid(&self) -> Option<&OrderBookEntry> {
@@ -214,12 +240,62 @@ impl OrderBook {
         self.asks.first()
     }
 
+    /// Returns the best bid price.
+    #[must_use]
+    pub fn best_bid_price(&self) -> Option<Decimal> {
+        self.bids.first().map(|e| e.price.amount())
+    }
+
+    /// Returns the best ask price.
+    #[must_use]
+    pub fn best_ask_price(&self) -> Option<Decimal> {
+        self.asks.first().map(|e| e.price.amount())
+    }
+
     /// Returns the spread.
     #[must_use]
     pub fn spread(&self) -> Option<Money> {
         let bid = self.best_bid()?;
         let ask = self.best_ask()?;
         ask.price.checked_sub(&bid.price)
+    }
+
+    /// Returns the total bid depth up to the given level count.
+    #[must_use]
+    pub fn bid_depth(&self, levels: usize) -> u64 {
+        self.bids
+            .iter()
+            .take(levels)
+            .map(|e| e.quantity.floor().to_string().parse::<u64>().unwrap_or(0))
+            .sum()
+    }
+
+    /// Returns the total ask depth up to the given level count.
+    #[must_use]
+    pub fn ask_depth(&self, levels: usize) -> u64 {
+        self.asks
+            .iter()
+            .take(levels)
+            .map(|e| e.quantity.floor().to_string().parse::<u64>().unwrap_or(0))
+            .sum()
+    }
+
+    /// Returns true if the order book is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bids.is_empty() && self.asks.is_empty()
+    }
+
+    /// Returns the number of bid levels.
+    #[must_use]
+    pub fn bid_levels(&self) -> usize {
+        self.bids.len()
+    }
+
+    /// Returns the number of ask levels.
+    #[must_use]
+    pub fn ask_levels(&self) -> usize {
+        self.asks.len()
     }
 }
 
@@ -231,11 +307,27 @@ pub struct ExchangeInfo {
     /// Human-readable name.
     pub name: String,
     /// Exchange website URL.
-    pub url: Option<String>,
-    /// Whether the exchange is currently available.
-    pub available: bool,
+    pub url: String,
     /// Supported instrument types.
     pub supported_types: Vec<InstrumentType>,
+}
+
+impl ExchangeInfo {
+    /// Creates a new ExchangeInfo.
+    #[must_use]
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        url: impl Into<String>,
+        supported_types: Vec<InstrumentType>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            url: url.into(),
+            supported_types,
+        }
+    }
 }
 
 #[cfg(test)]
