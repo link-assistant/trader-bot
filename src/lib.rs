@@ -71,9 +71,12 @@ pub mod cli;
 pub mod config;
 pub mod domain;
 pub mod exchange;
-pub mod lino_args;
 pub mod simulator;
 pub mod strategy;
+
+// Include lino_args from lib/rust directory
+#[path = "../lib/rust/lino_args/mod.rs"]
+pub mod lino_args;
 
 // Re-export balancer module at the old path for backwards compatibility
 #[doc(hidden)]
