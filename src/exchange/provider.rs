@@ -101,12 +101,18 @@ pub trait ExchangeProvider: Send + Sync {
 
 /// Generates a unique order ID.
 fn generate_order_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Atomic counter to ensure uniqueness even if called in same nanosecond
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    format!("ORD-{timestamp}")
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("ORD-{timestamp}-{counter}")
 }
 
 #[cfg(test)]

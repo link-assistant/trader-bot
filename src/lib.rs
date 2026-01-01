@@ -67,11 +67,16 @@
 #![warn(rustdoc::missing_crate_level_docs)]
 
 pub mod adapters;
+pub mod cli;
 pub mod config;
 pub mod domain;
 pub mod exchange;
 pub mod simulator;
 pub mod strategy;
+
+// Include lino_args from lib/rust directory
+#[path = "../lib/rust/lino_args/mod.rs"]
+pub mod lino_args;
 
 // Re-export balancer module at the old path for backwards compatibility
 #[doc(hidden)]
@@ -82,11 +87,13 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Re-export commonly used types at the crate root.
 pub mod prelude {
+    pub use crate::cli::{Cli, RuntimeConfig};
     pub use crate::config::{AccountConfig, AppConfig, UserConfig};
     pub use crate::domain::{
         DesiredAllocation, Money, Order, OrderDirection, OrderStatus, Position, Trade, Wallet,
     };
     pub use crate::exchange::{ExchangeError, ExchangeProvider, ExchangeResult};
+    pub use crate::lino_args::{getenv, getenv_bool, getenv_decimal, getenv_int, getenv_u64};
     pub use crate::simulator::SimulatedExchange;
     pub use crate::strategy::{
         BalancerConfig, BalancerEngine, HoldingStrategy, RebalanceCalculator, RebalancePlan,

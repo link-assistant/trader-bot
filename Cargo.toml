@@ -31,6 +31,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.11", features = ["v4", "serde"] }
+clap = { version = "4.4", features = ["derive", "env"] }
 
 [dev-dependencies]
 tokio-test = "0.4"
