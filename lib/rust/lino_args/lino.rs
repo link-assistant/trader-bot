@@ -70,8 +70,7 @@ impl LinoValue {
             Self::String(s) => s.clone(),
             Self::Number(n) => n.to_string(),
             Self::Bool(b) => b.to_string(),
-            Self::Null => String::new(),
-            Self::List(_) | Self::Object(_) => String::new(),
+            Self::Null | Self::List(_) | Self::Object(_) => String::new(),
         }
     }
 
@@ -211,7 +210,6 @@ impl std::error::Error for LinoParseError {}
 struct ParsedLine {
     indent: usize,
     content: String,
-    line_num: usize,
 }
 
 /// Parses Links Notation content into a structured value.
@@ -256,7 +254,7 @@ pub fn parse_lino(content: &str) -> Result<LinoValue, LinoParseError> {
 fn parse_lines(content: &str) -> Vec<ParsedLine> {
     let mut lines = Vec::new();
 
-    for (line_num, line) in content.lines().enumerate() {
+    for line in content.lines() {
         // Skip empty lines and comments
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -269,7 +267,6 @@ fn parse_lines(content: &str) -> Vec<ParsedLine> {
         lines.push(ParsedLine {
             indent,
             content: trimmed.to_string(),
-            line_num: line_num + 1,
         });
     }
 
@@ -313,7 +310,7 @@ fn parse_block(
                 if line.content.ends_with(')') && line.content.len() > 2 {
                     // Single line tuple: (key value)
                     let inner = &line.content[1..line.content.len() - 1];
-                    let node = parse_tuple_content(inner, line.line_num)?;
+                    let node = parse_tuple_content(inner);
                     list_items.push(node);
                     i += 1;
                 } else if line.content == "(" {
@@ -394,18 +391,18 @@ fn parse_block(
 /// Parses a single line into key and optional value.
 fn parse_key_value(line: &str) -> (String, Option<String>) {
     // Handle quoted keys like "log level" info
-    if line.starts_with('"') {
-        if let Some(end_quote) = line[1..].find('"') {
-            let key = &line[1..=end_quote];
-            let rest = line[end_quote + 2..].trim();
+    if let Some(stripped) = line.strip_prefix('"') {
+        if let Some(end_quote) = stripped.find('"') {
+            let key = &stripped[..end_quote];
+            let rest = stripped[end_quote + 1..].trim();
 
             if rest.is_empty() {
                 return (normalize_key(key), None);
             }
 
             // Check for colon separator after the quoted key
-            if rest.starts_with(": ") {
-                return (normalize_key(key), Some(rest[2..].trim().to_string()));
+            if let Some(value) = rest.strip_prefix(": ") {
+                return (normalize_key(key), Some(value.trim().to_string()));
             }
 
             return (normalize_key(key), Some(rest.to_string()));
@@ -445,11 +442,11 @@ fn parse_key_value(line: &str) -> (String, Option<String>) {
 }
 
 /// Parses tuple content like "key value" or "key: value".
-fn parse_tuple_content(content: &str, _line_num: usize) -> Result<LinoNode, LinoParseError> {
+fn parse_tuple_content(content: &str) -> LinoNode {
     let trimmed = content.trim();
 
     if trimmed.is_empty() {
-        return Ok(LinoNode::new("", LinoValue::Null));
+        return LinoNode::new("", LinoValue::Null);
     }
 
     let (key, value) = parse_key_value(trimmed);
@@ -457,7 +454,7 @@ fn parse_tuple_content(content: &str, _line_num: usize) -> Result<LinoNode, Lino
         .map(|v| parse_value_string(&v))
         .unwrap_or(LinoValue::Null);
 
-    Ok(LinoNode::new(key, value))
+    LinoNode::new(key, value)
 }
 
 /// Normalizes a key by replacing quoted spaces with underscores.
