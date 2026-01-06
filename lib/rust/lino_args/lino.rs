@@ -564,10 +564,10 @@ mod tests {
 
     #[test]
     fn test_parse_simple_key_value() {
-        let content = r#"
+        let content = r"
 key value
 another_key another_value
-"#;
+";
         let result = parse_lino(content).unwrap();
         assert_eq!(result.get_str("key"), Some("value"));
         assert_eq!(result.get_str("another_key"), Some("another_value"));
@@ -575,11 +575,11 @@ another_key another_value
 
     #[test]
     fn test_parse_nested_structure() {
-        let content = r#"
+        let content = r"
 settings
   log_level info
   verbose false
-"#;
+";
         let result = parse_lino(content).unwrap();
         assert_eq!(result.get_str("settings/log_level"), Some("info"));
         assert_eq!(result.get_bool("settings/verbose"), Some(false));
@@ -587,14 +587,14 @@ settings
 
     #[test]
     fn test_parse_deeply_nested() {
-        let content = r#"
+        let content = r"
 users
   user1
     name John
     accounts
       main
         balance 1000
-"#;
+";
         let result = parse_lino(content).unwrap();
         assert_eq!(result.get_str("users/user1/name"), Some("John"));
         assert_eq!(
@@ -605,23 +605,23 @@ users
 
     #[test]
     fn test_parse_with_colons() {
-        let content = r#"
+        let content = r"
 settings:
   log_level: info
   verbose: false
-"#;
+";
         let result = parse_lino(content).unwrap();
         assert_eq!(result.get_str("settings/log_level"), Some("info"));
     }
 
     #[test]
     fn test_parse_allocation_config() {
-        let content = r#"
+        let content = r"
 allocation
   SBER 30
   LKOH 30
   GAZP 40
-"#;
+";
         let result = parse_lino(content).unwrap();
         assert_eq!(result.get_number("allocation/SBER"), Some(30.0));
         assert_eq!(result.get_number("allocation/LKOH"), Some(30.0));
@@ -630,12 +630,12 @@ allocation
 
     #[test]
     fn test_parse_comments() {
-        let content = r#"
+        let content = r"
 # This is a comment
 key value
 # Another comment
 another_key value2
-"#;
+";
         let result = parse_lino(content).unwrap();
         assert_eq!(result.get_str("key"), Some("value"));
         assert_eq!(result.get_str("another_key"), Some("value2"));
@@ -643,11 +643,11 @@ another_key value2
 
     #[test]
     fn test_flatten_to_env() {
-        let content = r#"
+        let content = r"
 settings
   log_level info
   verbose true
-"#;
+";
         let result = parse_lino(content).unwrap();
         let env_vars = flatten_to_env(&result, "");
 
@@ -657,7 +657,7 @@ settings
 
     #[test]
     fn test_parse_list_items() {
-        let content = r#"
+        let content = r"
 users
   (
     name John
@@ -667,7 +667,7 @@ users
     name Jane
     broker binance
   )
-"#;
+";
         let result = parse_lino(content).unwrap();
         if let Some(LinoValue::List(users)) = result.get("users") {
             assert_eq!(users.len(), 2);
