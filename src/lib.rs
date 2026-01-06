@@ -90,7 +90,8 @@ pub mod prelude {
     pub use crate::cli::{Cli, RuntimeConfig};
     pub use crate::config::{AccountConfig, AppConfig, UserConfig};
     pub use crate::domain::{
-        DesiredAllocation, Money, Order, OrderDirection, OrderStatus, Position, Trade, Wallet,
+        DesiredAllocation, Money, Order, OrderDirection, OrderStatus, PlannedOrder, PlannedOrders,
+        Position, Trade, Wallet,
     };
     pub use crate::exchange::{ExchangeError, ExchangeProvider, ExchangeResult};
     pub use crate::lino_args::{getenv, getenv_bool, getenv_decimal, getenv_int, getenv_u64};

@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tracing::{debug, error, info};
 use tracing_subscriber::FmtSubscriber;
 use trader_bot::cli::Cli;
-use trader_bot::domain::DesiredAllocation;
+use trader_bot::domain::{DesiredAllocation, PlannedOrder, PlannedOrders};
 use trader_bot::prelude::*;
 use trader_bot::simulator::SimulatedExchange;
 
@@ -50,6 +50,9 @@ async fn main() {
         Ok(None) => {
             if cli.demo {
                 info!("Running demo mode...");
+                if cli.plan {
+                    info!("PLAN MODE enabled - orders will be calculated but not executed");
+                }
                 demo_simulation(&cli).await;
             } else {
                 info!("No configuration file found. Use --config to specify one, or --demo for demo mode.");
@@ -68,7 +71,9 @@ async fn main() {
 async fn run_with_config(cli: &Cli, config: trader_bot::config::AppConfig) {
     info!("Starting trading bot...");
 
-    if cli.dry_run || config.settings.dry_run {
+    if cli.plan {
+        info!("Running in PLAN MODE - orders will be calculated but not executed");
+    } else if cli.dry_run || config.settings.dry_run {
         info!("Running in DRY-RUN mode - no actual trades will be executed");
     }
 
@@ -108,9 +113,11 @@ async fn run_with_config(cli: &Cli, config: trader_bot::config::AppConfig) {
         // In real implementation, we would:
         // 1. Create exchange adapter based on account.exchange
         // 2. Create balancer engine
-        // 3. Run rebalancing
+        // 3. Run rebalancing (or just plan if --plan mode)
 
-        if cli.run_once {
+        if cli.plan {
+            info!("  Would calculate rebalancing plan (plan mode)...");
+        } else if cli.run_once {
             info!("  Would execute single rebalance...");
         } else {
             info!(
@@ -122,6 +129,9 @@ async fn run_with_config(cli: &Cli, config: trader_bot::config::AppConfig) {
 
     info!("Configuration loaded successfully. Exchange adapters are placeholders.");
     info!("Use --demo for a working demonstration with simulated exchange.");
+    if cli.plan {
+        info!("Use --demo --plan to see plan mode in action with simulated data.");
+    }
 }
 
 /// Demonstrates the balancer with a simulated exchange.
@@ -159,61 +169,109 @@ async fn demo_simulation(cli: &Cli) {
     // Create balancer with CLI options
     let exchange = Arc::new(exchange);
     let order_delay = cli.order_delay.unwrap_or(100);
+
+    // In plan mode, we always set dry_run to true to prevent execution
+    let effective_dry_run = cli.dry_run || cli.plan;
     let config = BalancerConfig {
-        dry_run: cli.dry_run,
+        dry_run: effective_dry_run,
         order_delay_ms: order_delay,
         ..BalancerConfig::default()
     };
     let mut engine = BalancerEngine::new(Arc::clone(&exchange), config);
 
-    if cli.dry_run {
+    if cli.plan {
+        info!("PLAN MODE enabled - calculating orders without executing");
+    } else if cli.dry_run {
         info!("DRY-RUN mode enabled - simulating without actual orders");
     }
 
-    // Run initial rebalance
-    info!("Running initial rebalance...");
-    match engine.rebalance(account_id, &target).await {
-        Ok(result) => {
-            info!("Rebalance complete!");
-            info!("  Trades executed: {}", result.executed.len());
-            if !result.executed.is_empty() {
-                for action in &result.executed {
-                    info!(
-                        "    {} {} lots of {} @ {}",
-                        if action.is_buy() { "BUY" } else { "SELL" },
-                        action.lots,
-                        action.symbol,
-                        action.estimated_price
-                    );
+    // In plan mode, only create the plan and display it
+    if cli.plan {
+        info!("Creating rebalancing plan...");
+        match engine.create_plan(account_id, &target).await {
+            Ok(plan) => {
+                let mut planned_orders = PlannedOrders::new();
+
+                if plan.is_empty() {
+                    info!("No rebalancing needed - portfolio is already balanced.");
+                    if let Some(reason) = &plan.empty_reason {
+                        info!("Reason: {}", reason);
+                    }
+                } else {
+                    // Convert plan actions to PlannedOrders for display
+                    for action in &plan.actions {
+                        let order = PlannedOrder::from_rebalance_action(action, account_id);
+                        planned_orders.add_order(order);
+                    }
+                    planned_orders.set_total_buy_value(plan.total_buy_value.clone());
+                    planned_orders.set_total_sell_value(plan.total_sell_value.clone());
+
+                    // Display the planned orders
+                    planned_orders.display();
+
+                    info!("Plan summary: {}", plan.summary());
                 }
             }
+            Err(e) => {
+                error!("Failed to create plan: {}", e);
+            }
         }
-        Err(e) => {
-            error!("Rebalance failed: {}", e);
+    } else {
+        // Normal execution mode (or dry-run mode)
+        info!("Running initial rebalance...");
+        match engine.rebalance(account_id, &target).await {
+            Ok(result) => {
+                info!("Rebalance complete!");
+                info!("  Trades executed: {}", result.executed.len());
+                if !result.executed.is_empty() {
+                    for action in &result.executed {
+                        info!(
+                            "    {} {} lots of {} @ {}",
+                            if action.is_buy() { "BUY" } else { "SELL" },
+                            action.lots,
+                            action.symbol,
+                            action.estimated_price
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Rebalance failed: {}", e);
+            }
         }
     }
 
-    // Show final portfolio
+    // Show final portfolio (state after planning or execution)
     match exchange.get_wallet(account_id).await {
         Ok(wallet) => {
-            info!("Final portfolio:");
+            if cli.plan {
+                info!("Current portfolio (unchanged - plan mode):");
+            } else {
+                info!("Final portfolio:");
+            }
             info!("  Cash: {}", wallet.cash());
-            info!("  Positions:");
-            for pos in wallet.positions() {
-                info!(
-                    "    {}: {} units @ {} = {}",
-                    pos.symbol(),
-                    pos.quantity(),
-                    pos.current_price(),
-                    pos.market_value()
-                );
+            if wallet.positions().is_empty() {
+                info!("  Positions: none");
+            } else {
+                info!("  Positions:");
+                for pos in wallet.positions() {
+                    info!(
+                        "    {}: {} units @ {} = {}",
+                        pos.symbol(),
+                        pos.quantity(),
+                        pos.current_price(),
+                        pos.market_value()
+                    );
+                }
             }
             info!("  Total value: {}", wallet.total_value());
 
             let alloc = wallet.current_allocation();
-            info!("Current allocation:");
-            for (symbol, pct) in alloc.iter() {
-                info!("    {}: {:.2}%", symbol, pct);
+            if !alloc.is_empty() {
+                info!("Current allocation:");
+                for (symbol, pct) in alloc.iter() {
+                    info!("    {}: {:.2}%", symbol, pct);
+                }
             }
         }
         Err(e) => {

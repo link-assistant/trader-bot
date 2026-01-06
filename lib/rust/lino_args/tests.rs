@@ -133,8 +133,59 @@ mod getenv_tests {
 mod lenv_tests {
     use super::*;
 
+    // Tests for Links Notation format (": " separator - preferred)
     #[test]
-    fn test_parse_lenv_simple() {
+    fn test_parse_lenv_links_notation_simple() {
+        let content = r"
+API_KEY: my_secret
+PORT: 8080
+";
+        let vars = parse_lenv(content).unwrap();
+        assert_eq!(vars.get("API_KEY"), Some(&"my_secret".to_string()));
+        assert_eq!(vars.get("PORT"), Some(&"8080".to_string()));
+    }
+
+    #[test]
+    fn test_parse_lenv_links_notation_with_comments() {
+        let content = r"
+# This is a comment
+API_KEY: secret
+# Another comment
+DEBUG: true
+";
+        let vars = parse_lenv(content).unwrap();
+        assert_eq!(vars.len(), 2);
+        assert_eq!(vars.get("API_KEY"), Some(&"secret".to_string()));
+        assert_eq!(vars.get("DEBUG"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn test_parse_lenv_links_notation_quoted_values() {
+        let content = r#"
+MESSAGE: "Hello, World!"
+SINGLE: 'Single quoted'
+PLAIN: NoQuotes
+"#;
+        let vars = parse_lenv(content).unwrap();
+        assert_eq!(vars.get("MESSAGE"), Some(&"Hello, World!".to_string()));
+        assert_eq!(vars.get("SINGLE"), Some(&"Single quoted".to_string()));
+        assert_eq!(vars.get("PLAIN"), Some(&"NoQuotes".to_string()));
+    }
+
+    #[test]
+    fn test_parse_lenv_links_notation_value_with_colons() {
+        // Value can contain colons (URL case)
+        let content = "URL: https://example.com:8080/api";
+        let vars = parse_lenv(content).unwrap();
+        assert_eq!(
+            vars.get("URL"),
+            Some(&"https://example.com:8080/api".to_string())
+        );
+    }
+
+    // Tests for backwards compatibility with = separator
+    #[test]
+    fn test_parse_lenv_equals_separator() {
         let content = r"
 API_KEY=my_secret
 PORT=8080
@@ -145,39 +196,24 @@ PORT=8080
     }
 
     #[test]
-    fn test_parse_lenv_with_comments() {
+    fn test_parse_lenv_mixed_separators() {
+        // Support both formats in the same file for migration
         let content = r"
-# This is a comment
-API_KEY=secret
-# Another comment
-DEBUG=true
+API_KEY: new_format
+LEGACY_VAR=old_format
 ";
         let vars = parse_lenv(content).unwrap();
-        assert_eq!(vars.len(), 2);
-        assert_eq!(vars.get("API_KEY"), Some(&"secret".to_string()));
-        assert_eq!(vars.get("DEBUG"), Some(&"true".to_string()));
-    }
-
-    #[test]
-    fn test_parse_lenv_quoted_values() {
-        let content = r#"
-MESSAGE="Hello, World!"
-SINGLE='Single quoted'
-PLAIN=NoQuotes
-"#;
-        let vars = parse_lenv(content).unwrap();
-        assert_eq!(vars.get("MESSAGE"), Some(&"Hello, World!".to_string()));
-        assert_eq!(vars.get("SINGLE"), Some(&"Single quoted".to_string()));
-        assert_eq!(vars.get("PLAIN"), Some(&"NoQuotes".to_string()));
+        assert_eq!(vars.get("API_KEY"), Some(&"new_format".to_string()));
+        assert_eq!(vars.get("LEGACY_VAR"), Some(&"old_format".to_string()));
     }
 
     #[test]
     fn test_parse_lenv_empty_lines() {
         let content = r"
 
-API_KEY=value
+API_KEY: value
 
-PORT=8080
+PORT: 8080
 
 ";
         let vars = parse_lenv(content).unwrap();
@@ -185,7 +221,7 @@ PORT=8080
     }
 
     #[test]
-    fn test_parse_lenv_error_no_equals() {
+    fn test_parse_lenv_error_no_separator() {
         let content = "INVALID_LINE";
         let result = parse_lenv(content);
         assert!(result.is_err());
@@ -193,8 +229,13 @@ PORT=8080
 
     #[test]
     fn test_parse_lenv_error_empty_key() {
-        let content = "=value";
+        let content = ": value";
         let result = parse_lenv(content);
         assert!(result.is_err());
+
+        // Also test equals case
+        let content2 = "=value";
+        let result2 = parse_lenv(content2);
+        assert!(result2.is_err());
     }
 }

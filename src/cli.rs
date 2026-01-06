@@ -43,6 +43,11 @@ pub struct Cli {
     #[arg(long, default_value = "false", env = "TRADER_BOT_DRY_RUN")]
     pub dry_run: bool,
 
+    /// Run in plan mode - connect to real market, calculate orders but don't execute them.
+    /// Displays detailed information about what orders would be placed.
+    #[arg(long, default_value = "false", env = "TRADER_BOT_PLAN")]
+    pub plan: bool,
+
     /// Account ID to use (if not specified, uses all configured accounts).
     #[arg(short, long, env = "TRADER_BOT_ACCOUNT")]
     pub account: Option<String>,
@@ -180,6 +185,8 @@ pub struct RuntimeConfig {
     pub verbose: bool,
     /// Dry run mode enabled.
     pub dry_run: bool,
+    /// Plan mode enabled - shows what orders would be placed without executing.
+    pub plan: bool,
     /// Specific account to use.
     pub account: Option<String>,
     /// Specific user to use.
@@ -206,6 +213,7 @@ impl RuntimeConfig {
             log_level,
             verbose: cli.verbose,
             dry_run: cli.dry_run,
+            plan: cli.plan,
             account: cli.account,
             user: cli.user,
             balance_interval: cli.balance_interval,
@@ -243,6 +251,7 @@ impl RuntimeConfig {
             log_level,
             verbose: getenv_bool("TRADER_BOT_VERBOSE", false),
             dry_run: getenv_bool("TRADER_BOT_DRY_RUN", false),
+            plan: getenv_bool("TRADER_BOT_PLAN", false),
             account: std::env::var("TRADER_BOT_ACCOUNT").ok(),
             user: std::env::var("TRADER_BOT_USER").ok(),
             balance_interval: {

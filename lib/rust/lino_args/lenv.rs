@@ -1,7 +1,29 @@
 //! Links Notation Environment (lenv) file loading.
 //!
-//! Provides functionality to load configuration from `.lenv` files,
-//! which are similar to `.env` files but with Links Notation support.
+//! Provides functionality to load configuration from `.lenv` files using
+//! [Links Notation](https://github.com/link-foundation/links-notation) format.
+//!
+//! # Format
+//!
+//! The lenv format uses `: ` (colon-space) as separator following Links Notation:
+//! - `KEY: value` - Simple key-value pairs
+//! - `KEY: "value with spaces"` - Quoted values
+//! - `KEY: 'value with spaces'` - Single-quoted values
+//! - `# comment` - Comments (lines starting with #)
+//! - Empty lines are ignored
+//! - Indented nested structures are supported
+//!
+//! # Example
+//!
+//! ```text
+//! # API tokens
+//! TBANK_API_TOKEN: your_token_here
+//! BINANCE_API_KEY: your_key_here
+//!
+//! # Settings
+//! TRADER_BOT_LOG_LEVEL: info
+//! TRADER_BOT_VERBOSE: false
+//! ```
 
 use std::collections::HashMap;
 use std::fs;
@@ -43,19 +65,22 @@ impl From<io::Error> for LenvError {
 ///
 /// # Format
 ///
-/// The lenv format supports:
-/// - `KEY=value` - Simple key-value pairs
-/// - `KEY="value with spaces"` - Quoted values
-/// - `KEY='value with spaces'` - Single-quoted values
+/// The lenv format uses Links Notation with `: ` (colon-space) separator:
+/// - `KEY: value` - Simple key-value pairs
+/// - `KEY: "value with spaces"` - Quoted values
+/// - `KEY: 'value with spaces'` - Single-quoted values
 /// - `# comment` - Comments (lines starting with #)
 /// - Empty lines are ignored
+///
+/// For backwards compatibility, `=` separator is also supported.
 ///
 /// # Examples
 ///
 /// ```
 /// use trader_bot::lino_args::parse_lenv;
 ///
-/// let content = "# Configuration\nAPI_KEY=my_secret_key\nPORT=8080\nDEBUG=true\n";
+/// // Links Notation format (preferred)
+/// let content = "# Configuration\nAPI_KEY: my_secret_key\nPORT: 8080\nDEBUG: true\n";
 ///
 /// let vars = parse_lenv(content).unwrap();
 /// assert_eq!(vars.get("API_KEY"), Some(&"my_secret_key".to_string()));
@@ -72,35 +97,45 @@ pub fn parse_lenv(content: &str) -> Result<HashMap<String, String>, LenvError> {
             continue;
         }
 
-        // Find the = separator
-        if let Some(eq_pos) = trimmed.find('=') {
+        // Try Links Notation format first (": " separator)
+        // Then fall back to traditional format ("=" separator)
+        let (key, value) = if let Some(colon_pos) = trimmed.find(": ") {
+            let key = trimmed[..colon_pos].trim();
+            let value = trimmed[colon_pos + 2..].trim();
+            (key, value)
+        } else if let Some(eq_pos) = trimmed.find('=') {
             let key = trimmed[..eq_pos].trim();
             let value = trimmed[eq_pos + 1..].trim();
-
-            if key.is_empty() {
-                return Err(LenvError::Parse {
-                    line: line_num + 1,
-                    message: "Empty key".to_string(),
-                });
-            }
-
-            // Handle quoted values
-            let parsed_value = if (value.starts_with('"') && value.ends_with('"'))
-                || (value.starts_with('\'') && value.ends_with('\''))
-            {
-                // Remove quotes
-                value[1..value.len() - 1].to_string()
-            } else {
-                value.to_string()
-            };
-
-            vars.insert(key.to_string(), parsed_value);
+            (key, value)
         } else {
             return Err(LenvError::Parse {
                 line: line_num + 1,
-                message: "Missing '=' separator".to_string(),
+                message: "Missing ': ' or '=' separator".to_string(),
+            });
+        };
+
+        if key.is_empty() {
+            return Err(LenvError::Parse {
+                line: line_num + 1,
+                message: "Empty key".to_string(),
             });
         }
+
+        // Handle quoted values
+        let parsed_value = if (value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('\'') && value.ends_with('\''))
+        {
+            // Remove quotes
+            if value.len() >= 2 {
+                value[1..value.len() - 1].to_string()
+            } else {
+                value.to_string()
+            }
+        } else {
+            value.to_string()
+        };
+
+        vars.insert(key.to_string(), parsed_value);
     }
 
     Ok(vars)
