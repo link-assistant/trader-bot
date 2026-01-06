@@ -477,9 +477,10 @@ fn parse_value_string(s: &str) -> LinoValue {
 
     // Handle quoted strings
     if ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')))
-        && s.len() >= 2 {
-            return LinoValue::String(s[1..s.len() - 1].to_string());
-        }
+        && s.len() >= 2
+    {
+        return LinoValue::String(s[1..s.len() - 1].to_string());
+    }
 
     // Handle booleans
     match s.to_lowercase().as_str() {
