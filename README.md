@@ -58,33 +58,56 @@ priority:
 
 #### CLI Options
 
+CLI options use yargs-style arguments following [lino-arguments](https://github.com/link-foundation/lino-arguments) conventions:
+
 ```
 trader-bot:
-  --config <path>
-    Path to configuration file
-  --lenv <path>
-    Path to lenv file for environment variables
-  --log-level <level>
-    trace | debug | info | warn | error
+  --config <path>:
+    description: Path to configuration file
+    env: TRADER_BOT_CONFIG
+  --lenv <path>:
+    description: Path to lenv file for environment variables
+    env: LENV_FILE
+  --log-level <level>:
+    values:
+      trace
+      debug
+      info
+      warn
+      error
     default: info
-  --verbose
-    Enable verbose output
-  --dry-run
-    Run without executing actual trades
-  --plan
-    Show planned orders without executing
-  --account <id>
-    Specific account to use
-  --user <id>
-    Specific user for multi-user setups
-  --balance-interval <seconds>
-    Rebalancing interval override
-  --order-delay <milliseconds>
-    Delay between orders
-  --run-once
-    Run once and exit
-  --demo
-    Run with simulated exchange
+    env: TRADER_BOT_LOG_LEVEL
+  --verbose:
+    description: Enable verbose output
+    default: false
+    env: TRADER_BOT_VERBOSE
+  --dry-run:
+    description: Run without executing actual trades
+    default: false
+    env: TRADER_BOT_DRY_RUN
+  --plan:
+    description: Show planned orders without executing
+    default: false
+    env: TRADER_BOT_PLAN
+  --account <id>:
+    description: Specific account to use
+    env: TRADER_BOT_ACCOUNT
+  --user <id>:
+    description: Specific user for multi-user setups
+    env: TRADER_BOT_USER
+  --balance-interval <seconds>:
+    description: Rebalancing interval override
+    env: TRADER_BOT_BALANCE_INTERVAL
+  --order-delay <milliseconds>:
+    description: Delay between orders
+    env: TRADER_BOT_ORDER_DELAY
+  --run-once:
+    description: Run once and exit
+    default: false
+    env: TRADER_BOT_RUN_ONCE
+  --demo:
+    description: Run with simulated exchange
+    default: false
 ```
 
 #### Environment Variables
@@ -107,10 +130,11 @@ LENV_FILE: .lenv
 
 #### Lenv Configuration File
 
-Create a `.lenv` file using [lino-env](https://github.com/link-foundation/lino-env) format:
+Create a `.lenv` file using [lino-env](https://github.com/link-foundation/lino-env) format with [Links Notation](https://github.com/link-foundation/links-notation) syntax:
 
 ```
 # Trading bot configuration
+# Uses ": " (colon-space) separator following Links Notation
 
 # API tokens (keep secret)
 TBANK_API_TOKEN: your_api_token_here
@@ -122,40 +146,57 @@ TRADER_BOT_LOG_LEVEL: info
 TRADER_BOT_VERBOSE: false
 TRADER_BOT_DRY_RUN: false
 TRADER_BOT_BALANCE_INTERVAL: 3600
+TRADER_BOT_ORDER_DELAY: 1000
+
+# Account configuration
+TRADER_BOT_ACCOUNT: main_account
+TRADER_BOT_EXCHANGE: tbank
+TRADER_BOT_EXCHANGE_ACCOUNT_ID: 12345
+
+# Desired allocation (percentages)
+TRADER_BOT_ALLOCATION_SBER: 30
+TRADER_BOT_ALLOCATION_LKOH: 30
+TRADER_BOT_ALLOCATION_GAZP: 40
 ```
 
-#### JSON Configuration File
+#### Multi-Account Configuration with Indented Links Notation
 
-For complex multi-account setups, use JSON format:
+For complex multi-account setups, use indented [Links Notation](https://github.com/link-foundation/links-notation) syntax in your `.lenv` file:
 
-```json
-{
-  "version": "1.0.0",
-  "settings": {
-    "log_level": "info",
-    "verbose": false
-  },
-  "users": [
-    {
-      "id": "user1",
-      "name": "John Doe",
-      "accounts": [
-        {
-          "id": "account1",
-          "exchange": "tbank",
-          "exchange_account_id": "12345",
-          "token_env_var": "TBANK_API_TOKEN",
-          "desired_allocation": {
-            "SBER": 30,
-            "LKOH": 30,
-            "GAZP": 40
-          }
-        }
-      ]
-    }
-  ]
-}
 ```
+# Multi-user trading configuration
+# Indented Links Notation format
+
+# Global settings
+settings:
+  log_level: info
+  verbose: false
+  dry_run: false
+
+# User configurations
+users:
+  user1:
+    name: John Doe
+    accounts:
+      main:
+        exchange: tbank
+        exchange_account_id: 12345
+        token_env_var: TBANK_API_TOKEN
+        balance_interval_secs: 3600
+        allocation:
+          SBER: 30
+          LKOH: 30
+          GAZP: 40
+      binance:
+        exchange: binance
+        exchange_account_id: spot_main
+        token_env_var: BINANCE_API_KEY
+        allocation:
+          BTC: 50
+          ETH: 50
+```
+
+The indented syntax provides better readability for complex configurations while maintaining the Links Notation `: ` separator format.
 
 ### Examples
 
