@@ -6,6 +6,179 @@ A unified trading bot framework written in Rust with multi-exchange support, mul
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org/)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
+## Quick Start
+
+### Installation
+
+```bash
+cargo install --git https://github.com/link-assistant/trader-bot.git
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/link-assistant/trader-bot.git
+cd trader-bot
+cargo build --release
+```
+
+### CLI Usage
+
+Run demo mode to see how it works:
+
+```bash
+trader-bot --demo
+```
+
+Plan mode shows what orders would be placed without executing them:
+
+```bash
+trader-bot --demo --plan
+```
+
+Run with a configuration file:
+
+```bash
+trader-bot --config config.lenv
+```
+
+### Configuration
+
+Configuration uses [Links Notation](https://github.com/link-foundation/links-notation) via [lino-arguments](https://github.com/link-foundation/lino-arguments) for a unified configuration system.
+
+Configuration is loaded with the following priority:
+
+```
+priority:
+  CLI arguments
+  environment variables
+  configuration files
+  default values
+```
+
+#### CLI Options
+
+```
+trader-bot:
+  --config <path>
+    Path to configuration file
+  --lenv <path>
+    Path to lenv file for environment variables
+  --log-level <level>
+    trace | debug | info | warn | error
+    default: info
+  --verbose
+    Enable verbose output
+  --dry-run
+    Run without executing actual trades
+  --plan
+    Show planned orders without executing
+  --account <id>
+    Specific account to use
+  --user <id>
+    Specific user for multi-user setups
+  --balance-interval <seconds>
+    Rebalancing interval override
+  --order-delay <milliseconds>
+    Delay between orders
+  --run-once
+    Run once and exit
+  --demo
+    Run with simulated exchange
+```
+
+#### Environment Variables
+
+All options can be set via environment variables:
+
+```
+TRADER_BOT_CONFIG: path/to/config.lenv
+TRADER_BOT_LOG_LEVEL: info
+TRADER_BOT_VERBOSE: true
+TRADER_BOT_DRY_RUN: false
+TRADER_BOT_PLAN: false
+TRADER_BOT_ACCOUNT: account1
+TRADER_BOT_USER: user1
+TRADER_BOT_BALANCE_INTERVAL: 3600
+TRADER_BOT_ORDER_DELAY: 100
+TRADER_BOT_RUN_ONCE: false
+LENV_FILE: .lenv
+```
+
+#### Lenv Configuration File
+
+Create a `.lenv` file using [lino-env](https://github.com/link-foundation/lino-env) format:
+
+```
+# Trading bot configuration
+
+# API tokens (keep secret)
+TBANK_API_TOKEN: your_api_token_here
+BINANCE_API_KEY: your_binance_key
+BINANCE_API_SECRET: your_binance_secret
+
+# Bot settings
+TRADER_BOT_LOG_LEVEL: info
+TRADER_BOT_VERBOSE: false
+TRADER_BOT_DRY_RUN: false
+TRADER_BOT_BALANCE_INTERVAL: 3600
+```
+
+#### JSON Configuration File
+
+For complex multi-account setups, use JSON format:
+
+```json
+{
+  "version": "1.0.0",
+  "settings": {
+    "log_level": "info",
+    "verbose": false
+  },
+  "users": [
+    {
+      "id": "user1",
+      "name": "John Doe",
+      "accounts": [
+        {
+          "id": "account1",
+          "exchange": "tbank",
+          "exchange_account_id": "12345",
+          "token_env_var": "TBANK_API_TOKEN",
+          "desired_allocation": {
+            "SBER": 30,
+            "LKOH": 30,
+            "GAZP": 40
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Examples
+
+```bash
+# Demo mode - see the bot in action
+trader-bot --demo
+
+# Plan mode - preview orders without execution
+trader-bot --demo --plan
+
+# Verbose demo with planning
+trader-bot --demo --plan --verbose
+
+# Use specific config file
+trader-bot --config trading.lenv
+
+# Override balance interval
+trader-bot --config config.lenv --balance-interval 1800
+
+# Run once and exit
+trader-bot --config config.lenv --run-once
+```
+
 ## Features
 
 - **Multiple Trading Strategies**:
@@ -58,27 +231,7 @@ src/
 - **Testability**: Pure calculation logic with comprehensive tests
 - **Immutability**: Value types for domain concepts (Money, Position)
 
-## Quick Start
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/link-assistant/trader-bot.git
-cd trader-bot
-
-# Build the project
-cargo build
-
-# Run tests
-cargo test
-
-# Run the demo
-cargo run
-
-# Run an example
-cargo run --example basic_usage
-```
+## Library Usage
 
 ### Basic Usage - Portfolio Balancing
 
@@ -141,58 +294,6 @@ let state = MarketState::new("AAPL", "USD")
     .with_last_price(dec!(150));
 
 let decision = scalper.decide(&state).await;
-```
-
-## Configuration
-
-Create a `config.json` file:
-
-```json
-{
-  "version": "1.0.0",
-  "settings": {
-    "log_level": "info",
-    "verbose": false
-  },
-  "users": [
-    {
-      "id": "user1",
-      "name": "John Doe",
-      "email": "john@example.com",
-      "accounts": [
-        {
-          "id": "account1",
-          "name": "Main Trading Account",
-          "exchange": "tbank",
-          "exchange_account_id": "12345",
-          "token_env_var": "TBANK_API_TOKEN",
-          "desired_allocation": {
-            "SBER": 30,
-            "LKOH": 30,
-            "GAZP": 40
-          },
-          "allocation_mode": "manual",
-          "balance_interval_secs": 3600
-        }
-      ],
-      "active": true
-    }
-  ],
-  "accounts": [
-    {
-      "id": "shared",
-      "name": "Shared Account",
-      "exchange": "binance",
-      "exchange_account_id": "67890",
-      "token_env_var": "BINANCE_API_KEY",
-      "desired_allocation": {
-        "BTC": 50,
-        "ETH": 50
-      },
-      "allocation_mode": "market_cap"
-    }
-  ]
-}
 ```
 
 ## Testing
@@ -381,6 +482,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## References
 
-- Originally based on [balancer-trader-bot](https://github.com/link-assistant/trader-bot)
-- Incorporates ideas from [scalper-trader-bot](https://github.com/link-assistant/scalper-trader-bot)
-- Follows [code-architecture-principles](https://github.com/link-foundation/code-architecture-principles)
+- [Links Notation](https://github.com/link-foundation/links-notation) - Configuration format
+- [lino-arguments](https://github.com/link-foundation/lino-arguments) - Unified configuration system
+- [lino-env](https://github.com/link-foundation/lino-env) - Environment file format
+- [code-architecture-principles](https://github.com/link-foundation/code-architecture-principles) - Architecture guidelines
