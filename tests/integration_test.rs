@@ -41,7 +41,7 @@ mod balancer_integration_tests {
         let result = engine.rebalance("test_account", &target).await.unwrap();
 
         assert!(result.success);
-        assert!(!result.executed.is_empty());
+        assert_ne!(result.executed.len(), 0);
 
         // Verify portfolio is now closer to target
         let wallet = exchange.get_wallet("test_account").await.unwrap();
@@ -110,7 +110,7 @@ mod balancer_integration_tests {
         let result = engine.rebalance("dry_test", &target).await.unwrap();
 
         // Plan should exist but no trades executed
-        assert!(result.executed.is_empty());
+        assert_eq!(result.executed.len(), 0);
 
         // Wallet should still have only cash
         let wallet = exchange.get_wallet("dry_test").await.unwrap();
@@ -277,7 +277,7 @@ mod version_tests {
 
     #[test]
     fn test_version_is_not_empty() {
-        assert!(!VERSION.is_empty());
+        assert_ne!(VERSION.len(), 0);
     }
 
     #[test]
