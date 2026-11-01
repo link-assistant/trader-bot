@@ -302,7 +302,7 @@ mod tests {
         let wallet = Wallet::with_cash("USD", make_usd(dec!(10000)));
         assert_eq!(wallet.base_currency(), "USD");
         assert_eq!(wallet.cash().amount(), dec!(10000));
-        assert!(wallet.positions().is_empty());
+        assert_eq!(wallet.positions().len(), 0);
     }
 
     #[test]

@@ -39,7 +39,7 @@ impl OwnedLots {
 
         // Sort keys by price to ensure FIFO
         let mut sorted_entries: Vec<_> = self.lots_by_price.iter().collect();
-        sorted_entries.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
+        sorted_entries.sort_by_key(|a| a.1 .0);
 
         for (key, (price, qty)) in sorted_entries {
             if to_remove == 0 {
