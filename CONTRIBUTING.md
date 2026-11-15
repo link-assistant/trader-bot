@@ -283,6 +283,43 @@ Releases are managed through GitHub releases. To trigger a release:
 1. Manually trigger the release workflow with a version bump type
 2. Or: Update the version in Cargo.toml and push to main
 
+### First crates.io publication
+
+The first publication needs an authenticated crates.io account; a GitHub token
+cannot substitute for a crates.io API token. From the reviewed release checkout:
+
+```bash
+cargo test --test package_metadata
+cargo publish --dry-run --locked
+cargo login
+cargo publish --locked
+```
+
+Use a short-lived crates.io API token with permission to create/publish
+`trader-bot`, and revoke it after the bootstrap publication. The dry-run builds
+and packages the crate but does not upload it or verify registry credentials.
+Keep the manifest keywords at five or fewer; the metadata regression test
+checks this server-side constraint.
+
+After publication, a crate owner must open the crate's settings on crates.io and
+add a GitHub Actions trusted publisher with these exact values:
+
+- Repository owner: `link-assistant`
+- Repository name: `trader-bot`
+- Workflow filename: `release.yml`
+- Environment: leave empty (the release jobs do not specify one)
+
+See the [crates.io trusted publishing documentation](https://crates.io/docs/trusted-publishing).
+Both release jobs already request `id-token: write` and exchange the GitHub OIDC
+token with `rust-lang/crates-io-auth-action`. Their token-secret fallback remains
+available. Registration is complete only after crates.io shows the publisher;
+workflow configuration alone does not register it. A later release must also
+successfully authenticate and publish through OIDC to verify the full path.
+
+Release scripts require Node.js 24, matching the workflow. CI checks their imports
+with `node scripts/version-and-commit.mjs --help` and verifies the crate with
+`cargo publish --dry-run --locked` before any release job runs.
+
 ## Getting Help
 
 - Open an issue for bugs or feature requests
